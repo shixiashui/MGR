@@ -60,6 +60,8 @@ class Dataset_ETT_hour(Dataset):
             df_data = df_raw[cols_data]
         elif self.features == 'S':
             df_data = df_raw[[self.target]]
+        self.channel_names = list(df_data.columns)
+        self.data_offset = border1
 
         if self.scale:
             train_data = df_data[border1s[0]:border2s[0]]
@@ -83,6 +85,7 @@ class Dataset_ETT_hour(Dataset):
 
         self.data_x = data[border1:border2]
         self.data_y = data[border1:border2]
+        self.raw_window_count = max(0, len(self.data_x) - self.seq_len - self.pred_len + 1)
 
         if self.set_type == 0 and self.args.augmentation_ratio > 0:
             self.data_x, self.data_y, augmentation_tags = run_augmentation_single(self.data_x, self.data_y, self.args)
@@ -154,6 +157,8 @@ class Dataset_ETT_minute(Dataset):
             df_data = df_raw[cols_data]
         elif self.features == 'S':
             df_data = df_raw[[self.target]]
+        self.channel_names = list(df_data.columns)
+        self.data_offset = border1
 
         if self.scale:
             train_data = df_data[border1s[0]:border2s[0]]
@@ -179,6 +184,7 @@ class Dataset_ETT_minute(Dataset):
 
         self.data_x = data[border1:border2]
         self.data_y = data[border1:border2]
+        self.raw_window_count = max(0, len(self.data_x) - self.seq_len - self.pred_len + 1)
 
         if self.set_type == 0 and self.args.augmentation_ratio > 0:
             self.data_x, self.data_y, augmentation_tags = run_augmentation_single(self.data_x, self.data_y, self.args)
@@ -244,9 +250,22 @@ class Dataset_Custom(Dataset):
         df_raw.columns: ['date', ...(other features), target feature]
         '''
         cols = list(df_raw.columns)
-        cols.remove(self.target)
+        if 'date' not in cols:
+            raise ValueError(f"Dataset {self.data_path!r} must contain a 'date' column")
         cols.remove('date')
-        df_raw = df_raw[['date'] + cols + [self.target]]
+        if self.target in cols:
+            cols.remove(self.target)
+            df_raw = df_raw[['date'] + cols + [self.target]]
+        elif self.features == 'M':
+            # In multivariate-to-multivariate forecasting, target is not used to
+            # select an output channel. Datasets such as Electricity use numeric
+            # channel names and therefore have no default 'OT' column.
+            df_raw = df_raw[['date'] + cols]
+        else:
+            raise ValueError(
+                f"Target column {self.target!r} was not found in {self.data_path!r}; "
+                f"available columns include: {list(df_raw.columns[:8])}"
+            )
         num_train = int(len(df_raw) * 0.7)
         num_test = int(len(df_raw) * 0.2)
         num_vali = len(df_raw) - num_train - num_test
@@ -260,6 +279,8 @@ class Dataset_Custom(Dataset):
             df_data = df_raw[cols_data]
         elif self.features == 'S':
             df_data = df_raw[[self.target]]
+        self.channel_names = list(df_data.columns)
+        self.data_offset = border1
 
         if self.scale:
             train_data = df_data[border1s[0]:border2s[0]]
@@ -283,6 +304,7 @@ class Dataset_Custom(Dataset):
 
         self.data_x = data[border1:border2]
         self.data_y = data[border1:border2]
+        self.raw_window_count = max(0, len(self.data_x) - self.seq_len - self.pred_len + 1)
 
         if self.set_type == 0 and self.args.augmentation_ratio > 0:
             self.data_x, self.data_y, augmentation_tags = run_augmentation_single(self.data_x, self.data_y, self.args)
@@ -361,6 +383,8 @@ class Dataset_Solar(Dataset):
         border2 = border2s[self.set_type]
 
         df_data = df_raw.values
+        self.channel_names = [f'channel_{i}' for i in range(df_data.shape[1])]
+        self.data_offset = border1
 
         if self.scale:
             train_data = df_data[border1s[0]:border2s[0]]
@@ -371,6 +395,7 @@ class Dataset_Solar(Dataset):
 
         self.data_x = data[border1:border2]
         self.data_y = data[border1:border2]
+        self.raw_window_count = max(0, len(self.data_x) - self.seq_len - self.pred_len + 1)
 
         if self.set_type == 0 and self.args.augmentation_ratio > 0:
             self.data_x, self.data_y, augmentation_tags = run_augmentation_single(self.data_x, self.data_y, self.args)

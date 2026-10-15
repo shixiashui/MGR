@@ -25,15 +25,26 @@ if __name__ == '__main__':
                         help='model name, options: [SARAF]')
 
     # data loader
-    parser.add_argument('--data', type=str, default='weather', help='dataset type') # required=True,
-    parser.add_argument('--root_path', type=str, default='./data/weather/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='weather.csv', help='data file')
+    parser.add_argument('--data', type=str, default='ETTh1', help='dataset type')
+    parser.add_argument('--root_path', type=str, default='./data/', help='root path of the data file')
+    parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
     parser.add_argument('--features', type=str, default='M',
                         help='forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate')
     parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
     parser.add_argument('--freq', type=str, default='h',
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
+    parser.add_argument('--retrieval_mode', choices=['temporal', 'multiview', 'graph'], default='graph',
+                        help='retrieval ablation: temporal baseline, calibrated multi-view, or one-hop graph expansion')
+    parser.add_argument('--retrieval_cache_dir', type=str, default='./cache/saraf',
+                        help='directory for versioned train-only multi-view descriptors and sparse graph edges')
+    parser.add_argument('--retrieval_time_weight', type=float, default=0.5)
+    parser.add_argument('--retrieval_frequency_weight', type=float, default=0.25)
+    parser.add_argument('--retrieval_statistics_weight', type=float, default=0.25)
+    parser.add_argument('--graph_k', type=int, default=16, help='per-view graph degree')
+    parser.add_argument('--graph_seed_k', type=int, default=12, help='per-view query seeds before one-hop expansion')
+    parser.add_argument('--graph_backend', choices=['auto', 'exact', 'hnsw'], default='auto',
+                        help='sparse graph builder; auto uses optional hnswlib for larger training pools')
 
     # forecasting task
     parser.add_argument('--seq_len', type=int, default=96, help='input sequence length')
@@ -188,7 +199,10 @@ if __name__ == '__main__':
         for ii in range(args.itr):
             # setting record of experiments
             exp = Exp(args)  # set experiments
-            setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_df{}_fc{}_lr{}_topm{}_sd{}'.format(
+            model_for_metadata = exp.model.module if hasattr(exp.model, 'module') else exp.model
+            index_manifest = getattr(model_for_metadata, 'retrieval_index_manifest', {})
+            effective_graph_backend = index_manifest.get('graph_backend', args.graph_backend)
+            setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_df{}_fc{}_lr{}_topm{}_ta{}_r{}_tw{}_fw{}_sw{}_gk{}_gs{}_gb{}_sd{}'.format(
                 args.task_name,
                 args.model_id,
                 args.model,
@@ -203,6 +217,14 @@ if __name__ == '__main__':
                 args.factor,
                 args.learning_rate, 
                 args.topm,
+                args.time_aware_weight,
+                args.retrieval_mode,
+                args.retrieval_time_weight,
+                args.retrieval_frequency_weight,
+                args.retrieval_statistics_weight,
+                args.graph_k,
+                args.graph_seed_k,
+                effective_graph_backend,
                 args.seed)
 
             # W&B logging is disabled for the public release.
@@ -236,7 +258,11 @@ if __name__ == '__main__':
             torch.cuda.empty_cache()
     else:
         ii = 0
-        setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_df{}_fc{}_lr{}_topm{}_sd{}'.format(
+        exp = Exp(args)  # set experiments
+        model_for_metadata = exp.model.module if hasattr(exp.model, 'module') else exp.model
+        index_manifest = getattr(model_for_metadata, 'retrieval_index_manifest', {})
+        effective_graph_backend = index_manifest.get('graph_backend', args.graph_backend)
+        setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_df{}_fc{}_lr{}_topm{}_ta{}_r{}_tw{}_fw{}_sw{}_gk{}_gs{}_gb{}_sd{}'.format(
                 args.task_name,
                 args.model_id,
                 args.model,
@@ -251,9 +277,16 @@ if __name__ == '__main__':
                 args.factor,
                 args.learning_rate, 
                 args.topm,
+                args.time_aware_weight,
+                args.retrieval_mode,
+                args.retrieval_time_weight,
+                args.retrieval_frequency_weight,
+                args.retrieval_statistics_weight,
+                args.graph_k,
+                args.graph_seed_k,
+                effective_graph_backend,
                 args.seed)
 
-        exp = Exp(args)  # set experiments
         print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
         exp.test(setting, test=1)
         torch.cuda.empty_cache()

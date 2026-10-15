@@ -1,2 +1,7 @@
 __pycache__/
 data/
+cache/
+checkpoints/
+results/
+test_results/
+result_long_term_forecast.txt

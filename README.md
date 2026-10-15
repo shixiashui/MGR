@@ -74,6 +74,23 @@ bash scripts/solar_720.sh
 
 ```
 
+### MGR: Multi-view Graph Retriever
+
+SARAF retains its original time-domain retriever and extends it as MGR (`MGRRetriever`): a Multi-view Graph Retriever. The default `graph` mode fuses temporal, frequency, and statistical views, then expands candidates by one hop through sparse frequency/statistics neighbor graphs. `multiview` disables graph expansion; `temporal` runs the temporal-only baseline. The implementation lives in `layers/MGRRetriever.py`; `layers/Retrieval.py` remains as a backward-compatible import path.
+
+```bash
+# Compare with the temporal-only baseline
+python run.py --data ETTh1 --root_path ./data/ --data_path ETTh1.csv --seq_len 96 --label_len 48 --pred_len 96 --retrieval_mode temporal
+
+# Multi-view retrieval without graph expansion
+python run.py --data ETTh1 --root_path ./data/ --data_path ETTh1.csv --seq_len 96 --label_len 48 --pred_len 96 --retrieval_mode multiview
+
+# Default multi-view retrieval with one-hop graph expansion
+python run.py --data ETTh1 --root_path ./data/ --data_path ETTh1.csv --seq_len 96 --label_len 48 --pred_len 96 --retrieval_mode graph
+```
+
+Train-only feature and graph artifacts are cached under `./cache/saraf/`. The manifest records source-file hash, window IDs and source row ranges, channel names, scaler parameters, edge type, graph backend, build time, cache size, and sampled graph Recall@K. HNSW acceleration is optional (`pip install hnswlib`); `--graph_backend exact` forces exact blocked kNN construction. Use `--retrieval_time_weight`, `--retrieval_frequency_weight`, and `--retrieval_statistics_weight` to configure fusion weights.
+
 ## Acknowledgement
 
 This code is based on [RAFT](https://arxiv.org/abs/2505.04163) and [Time-Series-Library](https://github.com/thuml/Time-Series-Library). We thank the authors for their open-source contributions.

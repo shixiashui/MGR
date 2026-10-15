@@ -15,6 +15,9 @@ data_dict = {
 
 
 def data_provider(args, flag):
+    if args.data not in data_dict:
+        supported = ', '.join(sorted(data_dict))
+        raise ValueError(f"Unknown dataset {args.data!r}. Supported datasets: {supported}")
     Data = data_dict[args.data]
     timeenc = 0 if args.embed != 'timeF' else 1
 

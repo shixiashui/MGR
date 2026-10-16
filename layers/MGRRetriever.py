@@ -371,7 +371,7 @@ class MGRRetriever():
             temperature = 0.1  # default temperature
         
         # Step 1: Select TopM as the candidate pool first.
-        candidate_pool_size = min(candidate_pool_size, n_train, available)
+        candidate_pool_size = min(candidate_pool_size, n_train)
         topM = torch.topk(sim, candidate_pool_size, dim=0)
         candidate_idx = topM.indices  # [M]
         candidate_sim = topM.values   # [M] similarity between candidate samples and the query

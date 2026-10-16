@@ -2,7 +2,7 @@ export CUDA_VISIBLE_DEVICES=2
 
 model_name=SARAF
 
-for seed in 42
+for seed in 42 2022
 do
     python -u run.py \
       --task_name long_term_forecast \

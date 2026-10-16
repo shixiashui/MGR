@@ -10,6 +10,18 @@ import numpy as np
 # import wandb
 # wandb.login()
 
+
+def _parse_bool(value):
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in ('1', 'true', 'yes', 'y', 'on'):
+        return True
+    if normalized in ('0', 'false', 'no', 'n', 'off'):
+        return False
+    raise argparse.ArgumentTypeError('expected a boolean value, got {!r}'.format(value))
+
+
 if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -28,7 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str, default='ETTh1', help='dataset type')
     parser.add_argument('--root_path', type=str, default='./data/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
-    parser.add_argument('--c2net', action='store_true',
+    parser.add_argument('--c2net', nargs='?', const=True, default=False, type=_parse_bool,
                         help='initialize OpenI C2Net mounts and upload artifacts after a successful run')
     parser.add_argument('--c2net_dataset_subdir', type=str, default=None,
                         help='dataset subdirectory under c2net_context.dataset_path; used only with --c2net')

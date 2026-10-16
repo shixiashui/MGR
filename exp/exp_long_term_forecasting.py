@@ -9,6 +9,7 @@ import os
 import time
 import warnings
 import numpy as np
+import json
 import copy
 from utils.dtw_metric import dtw,accelerated_dtw
 from utils.augmentation import run_augmentation,run_augmentation_single
@@ -234,11 +235,12 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         test_data, test_loader = self._get_data(flag='test')
         if test:
             print('loading model')
-            self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
+            checkpoint_path = os.path.join(self.args.checkpoints, setting, 'checkpoint.pth')
+            self.model.load_state_dict(torch.load(checkpoint_path, map_location=self.device))
 
         preds = []
         trues = []
-        folder_path = './test_results/' + setting + '/'
+        folder_path = os.path.join(self.args.output_root, 'test_results', setting)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
@@ -301,7 +303,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         print('test shape:', preds.shape, trues.shape)
 
         # result save
-        folder_path = './results/' + setting + '/'
+        folder_path = os.path.join(self.args.output_root, 'results', setting)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         
@@ -340,13 +342,27 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         #     wandb.run.summary["final_rmse"] = rmse
         #     wandb.run.summary["final_r2"] = r2
         
-        f = open("result_long_term_forecast.txt", 'a')
-        f.write(setting + "  \n")
-        f.write("mse:{}, mae:{}, rmse:{}, mape:{}, mspe:{}, r2:{}\n".format(
-        mse, mae, rmse, mape, mspe, r2))
-        f.write('\n')
-        f.write('\n')
-        f.close()
+        metrics = {
+            'setting': setting,
+            'mse': float(mse),
+            'mae': float(mae),
+            'rmse': float(rmse),
+            'mape': float(mape),
+            'mspe': float(mspe),
+            'r2': float(r2),
+            'dtw': float(dtw),
+        }
+        with open(os.path.join(folder_path, 'metrics.json'), 'w', encoding='utf-8') as f:
+            json.dump(metrics, f, ensure_ascii=False, indent=2)
+        np.save(os.path.join(folder_path, 'metrics.npy'),
+                np.array([mae, mse, rmse, mape, mspe, r2, dtw], dtype=float))
+
+        summary_path = os.path.join(self.args.output_root, 'result_long_term_forecast.txt')
+        with open(summary_path, 'a', encoding='utf-8') as f:
+            f.write(setting + "  \n")
+            f.write("mse:{}, mae:{}, rmse:{}, mape:{}, mspe:{}, r2:{}\n".format(
+                mse, mae, rmse, mape, mspe, r2))
+            f.write('\n\n')
 
         # np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
         # np.save(folder_path + 'pred.npy', preds)

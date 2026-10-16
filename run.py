@@ -28,12 +28,18 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str, default='ETTh1', help='dataset type')
     parser.add_argument('--root_path', type=str, default='./data/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
+    parser.add_argument('--c2net', action='store_true',
+                        help='initialize OpenI C2Net mounts and upload artifacts after a successful run')
+    parser.add_argument('--c2net_dataset_subdir', type=str, default=None,
+                        help='dataset subdirectory under c2net_context.dataset_path; used only with --c2net')
+    parser.add_argument('--output_root', type=str, default='.',
+                        help='root directory for checkpoints and experiment outputs')
     parser.add_argument('--features', type=str, default='M',
                         help='forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate')
     parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
     parser.add_argument('--freq', type=str, default='h',
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
-    parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
+    parser.add_argument('--checkpoints', type=str, default=None, help='location of model checkpoints')
     parser.add_argument('--retrieval_mode', choices=['temporal', 'multiview', 'graph'], default='graph',
                         help='retrieval ablation: temporal baseline, calibrated multi-view, or one-hop graph expansion')
     parser.add_argument('--retrieval_cache_dir', type=str, default='./cache/saraf',
@@ -166,6 +172,26 @@ if __name__ == '__main__':
                         help='fusion method: gated_attention, weighted, attention')   
 
     args = parser.parse_args()
+    c2net_upload_output = None
+    if args.c2net:
+        try:
+            from c2net.context import prepare, upload_output
+        except ImportError as exc:
+            parser.error('--c2net requires the OpenI c2net package in the runtime image: {}'.format(exc))
+        c2net_context = prepare()
+        args.output_root = c2net_context.output_path
+        if args.c2net_dataset_subdir:
+            args.root_path = os.path.join(c2net_context.dataset_path, args.c2net_dataset_subdir)
+        c2net_upload_output = upload_output
+        print('[C2Net] Dataset root: {}'.format(args.root_path))
+        print('[C2Net] Output root: {}'.format(args.output_root))
+    elif args.c2net_dataset_subdir:
+        parser.error('--c2net_dataset_subdir can only be used together with --c2net')
+
+    os.makedirs(args.output_root, exist_ok=True)
+    if args.checkpoints is None:
+        args.checkpoints = os.path.join(args.output_root, 'checkpoints')
+
     # args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
     args.use_gpu = True if torch.cuda.is_available() else False
 
@@ -290,3 +316,7 @@ if __name__ == '__main__':
         print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
         exp.test(setting, test=1)
         torch.cuda.empty_cache()
+
+    if c2net_upload_output is not None:
+        print('[C2Net] Uploading experiment outputs from {}'.format(args.output_root))
+        c2net_upload_output()

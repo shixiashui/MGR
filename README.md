@@ -91,6 +91,19 @@ python run.py --data ETTh1 --root_path ./data/ --data_path ETTh1.csv --seq_len 9
 
 Train-only feature and graph artifacts are cached under `./cache/saraf/`. The manifest records source-file hash, window IDs and source row ranges, channel names, scaler parameters, edge type, graph backend, build time, cache size, and sampled graph Recall@K. HNSW acceleration is optional (`pip install hnswlib`); `--graph_backend exact` forces exact blocked kNN construction. Use `--retrieval_time_weight`, `--retrieval_frequency_weight`, and `--retrieval_statistics_weight` to configure fusion weights.
 
+### OpenI C2Net training outputs
+
+For OpenI training tasks, add `--c2net` to initialize the mounted dataset and save checkpoints, plots, and metrics under `c2net_context.output_path`. The run uploads that output directory after training and testing finish successfully. If the selected dataset is mounted under a named subdirectory, pass it with `--c2net_dataset_subdir`:
+
+```bash
+python -u run.py --c2net --c2net_dataset_subdir etth1 \
+  --data ETTh1 --data_path ETTh1.csv \
+  --seq_len 96 --label_len 48 --pred_len 96 \
+  --enc_in 7 --dec_in 7 --c_out 7
+```
+
+The subdirectory must match the folder name under `c2net_context.dataset_path`. Without `--c2net`, local runs keep writing outputs under the project directory by default. The derived retrieval index cache remains under `./cache/saraf/` and is not uploaded.
+
 ## Acknowledgement
 
 This code is based on [RAFT](https://arxiv.org/abs/2505.04163) and [Time-Series-Library](https://github.com/thuml/Time-Series-Library). We thank the authors for their open-source contributions.
